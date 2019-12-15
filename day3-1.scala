@@ -70,7 +70,6 @@ object Main {
   }
 
   def shortestDistance(grid: Map[List[Int], Set[String]]): Int =  {
-    //grid(List(0,0)) = 
     val keys = grid.keys.filter(grid(_).size > 1)
     val absolute_keys = keys.map(_.map(math.abs(_)))
     return absolute_keys.map(_.sum).min
