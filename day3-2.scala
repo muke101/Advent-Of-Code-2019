@@ -8,20 +8,20 @@ object Main {
     val wire1 = wires.next.split(",")
     val wire2 = wires.next.split(",")
     var grid = Map[(Int,Int), Set[String]]()
-    val w1coords = plotCoords(List(List(),List()), wire1, (0,0))
-    drawY(grid, w1coords(0), "w1")
-    drawX(grid, w1coords(1), "w1")
-    val w2coords = plotCoords(List(List(),List()), wire2, (0,0))
-    drawY(grid, w2coords(0), "w2")
-    drawX(grid, w2coords(1), "w2")
+    val w1coords = plotCoords((List(),List()), wire1, (0,0))
+    drawY(grid, w1coords._1, "w1")
+    drawX(grid, w1coords._2, "w1")
+    val w2coords = plotCoords((List(),List()), wire2, (0,0))
+    drawY(grid, w2coords._1, "w2")
+    drawX(grid, w2coords._2, "w2")
   }
 
-  def plotCoords(coords: List[List[List[Int]]],  wire: Array[String], start: (Int,Int)): List[List[List[Int]]] = {
+  def plotCoords(coords: (List[List[Int]],List[List[Int]]),  wire: Array[String], start: (Int,Int)): (List[List[Int]],List[List[Int]]) = {
     if (wire.length > 0)  {
       val end = start.zip(parseMove(wire(0))).map{case (a,b) => a+b}
       (start,end) match {
-        case ((x1,y1),(x2,y2)) if x1 == x2 => coords(0) += (y1,y2,x1) //first sublist for vertical lines, second for horizontal lines
-        case ((x1,y1),(x2,y2)) if y1 == y2 => coords(1) += (x1,x2,y1)
+        case ((x1,y1),(x2,y2)) if x1 == x2 => coords._1 += (y1,y2,x1) //first sublist for vertical lines, second for horizontal lines
+        case ((x1,y1),(x2,y2)) if y1 == y2 => coords._2 += (x1,x2,y1)
       }
       return plotCoords(coords, wire.slice(1,wire.length), end)
     }
@@ -42,7 +42,7 @@ object Main {
     }
   }
 
-  def range(start: Int, end: Int): List[Int] = (start, end) match  {
+  def line(start: Int, end: Int): List[Int] = (start, end) match  {
           case (x1,x2) if x1 < x2 => (start to end).toList
           case (x1,x2) if x1 > x2 => (end to start).toList
           case _ => (start to end).toList
@@ -54,7 +54,8 @@ object Main {
       val start = point(0)
       val end = point(1)
       val linePos = point(2)
-      range(start,end).slice(1,range.length-1).map{x =>
+      val range = line(start,end)
+      range.slice(1,range.length-1).map{x =>
         if (grid.isDefinedAt((x,linePos))) {
             grid((x,linePos)) += number 
           }
@@ -72,7 +73,8 @@ object Main {
       val start = point(0)
       val end = point(1)
       val linePos = point(2)
-      range(start,end).slice(1,range.length-1).map{y =>
+      val range = line(start,end)
+      range.slice(1,range.length-1).map{y =>
         if (grid.isDefinedAt((linePos,y))) {
             grid((linePos,y)) += number 
           }
@@ -84,9 +86,65 @@ object Main {
     }
   }
 
-  //def shortestDistance(grid: Map[(Int,Int), Set[String]]): Int =  {
-  //  val keys = grid.keys.filter(grid(_).size > 1)
-  //  val absolute_keys = keys.map(_.map(math.abs(_)))
-  //  return absolute_keys.map(_.sum).min
-  //}
+  def walkX(grid: Map[(Int,Int), Set[String]], coords: List[Int], destination: (Int,Int), distance: Int): ((Int,Int), Int) =  {
+    val start = coords(0)
+    val end = coords(1)
+    val linePos = coords(2)
+    var newDistance = distance
+    line(start,end).map{x =>
+      if ((x,linePos) == end) {
+        return ((x,linePos),newDistance)
+      }
+      else  {
+        newDistance+=1
+      }
+    return ((end,linePos),newDistance)
+    }
+  }
+
+  def walkY(grid: Map[(Int,Int), Set[String]], coords: List[Int], destination: (Int,Int), distance: Int): ((Int,Int), Int) =  {
+    val start = coords(0)
+    val end = coords(1)
+    val linePos = coords(2)
+    var newDistance = distance
+    line(start,end).map{y =>
+      if ((linePos,y) == end) {
+        return ((linePos,y),newDistance)
+      }
+      else  {
+        newDistance+=1
+      }
+    return ((linePos,end),newDistance)
+    }
+  }
+
+
+
+  def walk(grid: Map[(Int,Int), Set[String]], moves: List[String], start: (Int,Int), destination: (Int,Int), distance: Int): Int = {
+    val result = plotCoords((List(),List()),Array(moves(0)),start) match {
+       case (ys,xs) if ys.length == 0 => walkX(grid,xs(0),destination,distance)
+       case (ys,xs) if xs.length == 0 => walkY(grid,ys(0),destination,distance)
+    }
+    val end = result._1
+    val newDistance = result._2
+    if (end == destination) {
+       return newDistance
+    }
+    else {
+       return walk(grid, moves.slice(1,moves.length), end, destination, newDistance)
+    }
+  }
+
+  def shortestDistance(grid: Map[(Int,Int), Set[String]], wires: (List[String],List[String]), distances: List[Int], intersections: List[(Int,Int)]): Int =  {
+    if (intersections.length > 0)  {
+      val intersection = intersections(0)
+      val w1Distance = walk(grid, wires._1, (0,0), intersection, 0)  
+      val w2Distance = walk(grid, wires._2, (0,0), intersection, 0)
+      distances += w1Distance+w2Distance
+      return shortestDistance(grid, wires, distances, intersections.slice(1,intersections.length))
+    }
+    else  {
+      return distances.min
+    }
+  }
 }
